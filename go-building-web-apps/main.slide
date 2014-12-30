@@ -1,0 +1,931 @@
+Building web apps in Go
+6 Feb 2015
+Tags: web, middleware, logging, monitoring, healthcheck
+
+Matt Bostock
+WebOps, Government Digital Service
+GOV.UK Infrastructure and Tools Team
+@mattbostock
+
+# Not everyone here will be familiar with Go
+
+# Some of the links shown to packages are the canonical package paths, not real
+# GitHub links, use them with `go get`
+
+# I'll try to elucidate some key concepts and provide links with futher information
+# If you're not sure about something, please ask at the end
+
+* What's a web app?
+
+# Indirectly, or directly:
+
+# A computer program that binds to a network port and responds to concurrent
+# HTTP requests according to the parameters provided by user agents (i.e., the clients)
+
+* A brief history of Go
+
+* Open source, developed by Google
+
+# Go is a systems language, open source, developed by Google
+# Five years old
+# Very stable API with a compatability promise for all version 1.x releases
+# Small team built core of language, inc. Ken Thompson (designed Unix, UTF8, B) and Rob Pike (Unix, UTF8, Plan9)
+
+Link: [[http://talks.golang.org/2012/splash.article][Google's rationale for Go]]
+
+* Minimal design
+
+# From http://www.drdobbs.com/open-source/interview-with-ken-thompson/229502480
+
+  "When the three of us [Thompson, Rob Pike, and Robert
+  Griesemer] got started, it was pure research. The three of
+  us got together and decided that we hated C++. [laughter]
+
+  ... It's too complex. ...
+
+  [Returning to Go,] we started off with the idea that all
+  three of us had to be talked into every feature in the
+  language, so there was no extraneous garbage put into the
+  language for any reason."
+
+  -- Ken Thompson
+
+* Statically typed
+
+# Which sounds tedious but makes debugging much easier
+# Garbage-collected, like Ruby, Python, etc.
+
+* Lightweight OO
+
+# Any type can have an interface, adding methods to an 'object'
+# Any type can satisfy an interface if it has the right methods
+
+.link https://www.youtube.com/watch?v=HqZQBmNVhBw DotGo talk: Go is object orientated
+
+* Why consider Go for web apps?
+
+* Go is fast
+
+# Very quick compile times
+# Very good overall performance
+# Still plenty of room for optimisation
+
+.link http://dave.cheney.net/2014/06/07/five-things-that-make-go-fast
+
+* Concurrency is a first-class concern
+
+.link https://github.com/golang/go/wiki/LearnConcurrency
+.link http://morsmachine.dk/go-scheduler
+.link http://vimeo.com/49718712 Rob Pike: Concurrency is not parallelism
+
+# Used for Google download server dl.google.com
+# Go handles concurrency very well
+# Concept of go routines, which are like lightweight threads
+# Web applications, directly or indirectly, handle multiple concurrent requests
+
+* crypto/tls
+
+.link http://golang.org/pkg/crypto/tls/
+
+# Built-in support for TLS from Go's standard library
+# It's written in Go, much more readable than C IMO
+# Not OpenSSL
+# crypo/tls package, heavy contribution from Adam Langley (Imperial Violet blog)
+
+# HTTP/2 is in the works, waiting on spec to be finalised
+
+# Look at the docs and see how TLS works under the hood; the standard library
+# is a great reference for what good Go code should look like
+
+* What does Go provide?
+
+* Several frameworks and toolkits
+
+# Some of the better ones IMO:
+
+# In no particular order;
+
+- [[http://beego.me/][Beego]] (most features)
+
+# Beego is very popular in China
+# Seems to have a lot of traction
+# Seems like the closest thing to Rails
+# But still composable, you can pick the parts you need
+
+- [[https://github.com/codegangsta/negroni][Negroni]]; [[https://justinas.org/alice-painless-middleware-chaining-for-go/][Alice]]
+
+# Negroni is a good compromise
+# Alice is similar but even more minimal
+
+- [[https://github.com/zenazn/goji][Goji]]
+- [[https://github.com/gocraft/web][Gocraft]]
+
+# All four of these are quite lightweight; Negroni especially
+# Goji and Gocraft treat request contexts are first-class features
+# More about contexts later
+
+* 
+
+- [[http://www.gorillatoolkit.org/pkg/][Gorilla]]
+
+# Gorilla is a toolkit; pick and choose
+
+- [[https://github.com/rcrowley/go-tigertonic][TigerTonic]] (for JSON APIs)
+
+# TigerTonic is inspired by DropWizard, reportedly very fast
+
+* Start with the standard library
+
+# One of Go's biggest strengths is its standard library;
+# written in Go
+
+# There's a strong tendency in Go to make full use of the standard library,
+# avoiding external dependencies where feasible
+# It's well-featured and well documented
+
+* net/http
+
+Provides us with a HTTP server
+
+.play -numbers code/simplest-http-server.go
+
+# I've added some logging
+# The server will block indefinitely - if it returns, the server has stopped
+
+* Want TLS with that?
+
+.code -numbers code/simplest-https-server.go
+
+# I've removed the logging to fit the screen
+
+# No Nginx necessary (though need to consider privileged ports)
+# Slow clients not an issue
+
+* The HTTP handler interface
+
+# The whole of Go's HTTP server implementation is based around one simple
+# interface - the handler
+
+# Think of a handler like a controller in MVC terminology
+
+# Remember, any variable with a capitalised first letter is exported (public)
+
+# Two arguments - response writer (another interface) and request (a struct type)
+
+# Any type, or 'object' that implements ServeHTTP() with the method signature
+# can be used as a HTTP handler
+
+# ResponseWriter looks like a value because interfaces are copied by reference (e.g. like a pointer)
+
+.code code/http-handler.go
+
+* Example: http.DefaultServeMux
+
+# This is the ServeHTTP() method for the default router, used to match
+# URLs (routes) to HTTP handler
+
+.code code/http-handler-mux.go
+
+* HandlerFunc() for convenience
+
+# Defining a HTTP handler by satisfying ServeHTTP() is sometimes too contrived
+
+# Instead, we can define a function for use as a handler
+
+.play code/http-handlerfunc.go
+
+# Note that we've created an anonymous function and assigned it to a variable 'hi'
+# We then pass that function to `http.HandlerFunc`
+
+# http.HandlerFunc satisfies the Handler interface
+
+* What do most frameworks provide?
+
+* Minimally:
+
+- Middleware chaining
+
+- Some useful/common middlewares, e.g. GZIP compression, [[http://en.wikipedia.org/wiki/Cross-site_request_forgery][CSRF]] headers, static assets
+
+* Then:
+
+- Routing
+
+- Request contexts
+
+- Logging
+
+- Graceful reload
+
+* And then:
+
+# I'm really thinking of Beego here:
+
+- [[http://en.wikipedia.org/wiki/Object-relational_mapping][Object-relational mapping]] (ORMs)
+
+- Migrations
+
+- Session management
+
+- Embedding of assets into your compiled binary
+
+# Convenient for deployments
+
+* Middleware
+
+# A key feature provided by most frameworks
+# Probably most essential part of a Go web application
+
+* Handlers can be used as 'middleware'
+
+# By chaining multiple handlers together, we can create stack of middleware for processing requests
+
+* Middleware chaining
+
+# Essentially just an array of HTTP handlers
+# That's the same interface we saw from the net/http package
+
+# I found it a useful exercise to write my own to better understand
+# the limitations and advantages to each framework's approach
+
+  []http.Handler
+
+* Example: Negroni
+
+  func (n *Negroni) ServeHTTP(rw http.ResponseWriter, r *http.Request) {
+          n.middleware.ServeHTTP(NewResponseWriter(rw), r)
+  }
+
+  // Use adds a Handler onto the middleware stack. Handlers
+  // are invoked in the order they are added to a Negroni.
+  func (n *Negroni) Use(handler Handler) {
+          n.handlers = append(n.handlers, handler)
+          n.middleware = build(n.handlers)
+  }
+
+# https://github.com/codegangsta/negroni/blob/1dd3ab0ff59e13f5b73dcbf70703710aebe50d2f/negroni.go#L72-L80
+
+* Example: Alice
+
+  // New creates a new chain [...]
+  func New(constructors ...Constructor) Chain {
+          c := Chain{}
+          c.constructors = append(c.constructors, constructors...)
+          return c
+  }
+
+  func (c Chain) Then(h http.Handler) http.Handler {
+        // [...trim...]
+        for i := len(c.constructors) - 1; i >= 0; i-- {
+                final = c.constructors[i](final)
+        }
+        return final
+  }
+
+# https://github.com/justinas/alice/blob/a3603a812e255d220672cd76841f4bdc3bc4b677/chain.go#L19-L28
+
+* A chaining example using Negroni
+
+  n := negroni.New()
+  n.Use(negroniLogrus.New(log))
+  n.Use(negroni.NewRecovery())
+  n.Use(negroni.NewStatic(http.Dir(assetsPath)))
+  n.UseHandler(mux)
+
+  log.Fatal(http.ListenAndServe(config.addr, n))
+
+* Middleware order is very important
+
+- Put logging middleware first
+
+# Important for request timing
+
+- Put GZIP compression last
+
+* Some middleware conflicts with others
+
+# I had issues using a GZIP middleware with Negroni's panic
+# recovery middleware
+
+* Static assets
+
+* func FileServer
+
+# net/http provides a 'FileServer' handler that can be used to serve static files
+# Also provides an index, i.e. a directory listing
+# Respects If-Last-Modified headers sent by the user agent
+
+  http.Handle("/", http.FileServer(http.Dir("/tmp")))
+
+* Zero-downtime upgrades
+
+# Some frameworks provide their own graceful reload/zero-downtime upgradeso
+
+.link https://github.com/alext/tablecloth
+
+* Asset piplelines?
+
+# Still maturing
+
+# Compile Less/Sass using a Makefile?
+
+# See train library, shells out
+.link https://github.com/shaoshing/train
+
+* Routing
+
+Match URL endpoints to HTTP handlers
+
+# By default, the http.DefaultServeMux is used
+
+  http.Handle("/", indexHandler)
+  http.Handle("/does-not-exist", http.NotFoundHandler())
+
+* http.DefaultServeMux
+
+# Mux = multiplexer
+# Minimum viable router
+# Tries to find closest route; doesn't always behave intuitively
+
+  // Note that since a pattern ending in a slash names a
+  // rooted subtree, the pattern "/" matches all paths not
+  // matched by other registered patterns, not just the URL
+  // with Path == "/".
+
+* gorilla/pat
+
+.link http://www.gorillatoolkit.org/pkg/pat
+
+# Part of the Gorilla toolkit
+# Uses gorilla/mux package under the hood,
+# but with an interface similar to the pat package:
+# https://github.com/bmizerany/pat
+
+# I find the pat-style interface more expressive
+# More powerful than pat in that supports route variables
+# in any part of the URL, not just as a trailing prefix
+
+# This makes it slower than the pat package
+
+  r := pat.New()
+  r.Get("/articles/{category}/{id:[0-9]+}", ArticleHandler)
+  r.Get("/articles/{category}/", ArticlesCategoryHandler)
+  r.Get("/products/{key}", ProductHandler)
+
+* httprouter
+
+# Reportedly higher performance and claims zero garbage
+# creation
+
+.link https://github.com/julienschmidt/httprouter
+
+* Request contexts
+
+# Request contexts are like the needle that threads through requests
+# Important for any application that has state
+
+# E.g., make the details of the currently logged-in user
+# available to all HTTP handlers involved in serving a
+# request
+
+* Approaches to contexts
+
+# There are different approaches on how to implement and use
+# contexts
+
+* First-class feature in some frameworks
+
+# Goji takes a context as an argument to its own implentation of HTTP handlers
+
+- [[https://github.com/zenazn/goji][Goji]]
+
+# Gocraft makes HTTP handlers methods on a context object
+
+- [[https://github.com/gocraft/web][Gocraft]]
+
+* Other approaches
+
+* gorilla/context
+
+.link http://www.gorillatoolkit.org/pkg/context
+
+# Stores a map of requests-to-contexts, so each request appends to the map and
+# must be cleaned up afterwards - you may need to clean up yourself if you're
+# not using one of Gorilla's mux or pat packages
+
+* nbio/httpcontext
+
+.link https://github.com/nbio/httpcontext
+
+# Most interesting approach IMO
+
+# Uses Go's composable interfaces to replace the HTTP response body and store
+# the context in the http.Request type; avoids global mutex and tear-down
+
+* Sessions
+
+# Gorilla's securecookie package provides signed (and optionally, encrypted)
+# cookies to hold session state
+
+# Pluggable backends, e.g. for storing sessions in database
+
+.link http://www.gorillatoolkit.org/pkg/securecookie
+
+* New oauth2 package
+
+# Developed by Go authors, work in progress
+# Not yet in standard library, hence the `x` in the package path (`x` for experimental?)
+
+.link https://golang.org/x/oauth2
+
+* Provides configuration for common endpoints
+
+.link https://golang.org/x/oauth2/github
+
+# More to be added
+
+* Easy to add custom endpoints:
+
+  var endpoint = oauth2.Endpoint{
+      AuthURL:  "https://example.com/login/oauth/authorize",
+      TokenURL: "https://example.com/login/oauth/access_token",
+  }
+
+* Beware concurrency when handling sessions
+
+# E.g. don't use pointers for sessions; make sure you test for multiple
+# concurrent users
+
+* Logging
+
+* log
+
+# Standard library package
+
+.link http://golang.org/pkg/log/
+
+* logrus
+
+# The standard log package is good, but missing some features useful
+# for web apps
+
+# Google use their own package, glog, but it has some unexpected side-effects
+# i.e. defines its own commandline options
+# https://github.com/golang/glog
+
+.link https://github.com/Sirupsen/logrus
+
+.image images/logrus.png _ 400
+
+* 
+
+# Supports multiple log levels, e.g. error, warning, info, debug
+# Drop-in replacement for standard library log package
+
+# Use import alias
+
+  import log "github.com/Sirupsen/logrus"
+
+
+* 
+
+# Supports pluggable formatters and hooks
+
+.image images/logrus-screen.png _ 900
+
+* JSON formatter
+
+  log.Formatter = &logrus.JSONFormatter{}
+
+# Great for piping into Elasticsearch/Kibana
+
+* Errbit/Airbrake hook
+
+  log.AddHook(&logrus_airbrake.AirbrakeHook{})
+
+* Which framework to use?
+
+# Recommend trying Negroni and Goji for simple applications
+# Perhaps Beego is better suited to larger applications
+
+# TigerTonic for JSON APIs
+
+# YMMV, try them out; look at examples (I'll provide some at the end)
+
+* Application healthcheck
+
+.link http://golang.org/pkg/expvar/
+
+* Exposes variables as JSON
+
+On `/debug/vars/` endpoint
+
+* 
+
+.play code/expvar.go
+
+# Get memory stats and commandline arguments for free just by importing
+# the package
+
+# Note that retrieving memory stats will 'stop the world' temporarily, use with
+# care
+
+# Make sure it's blocked to external users
+
+* Easy to expose healthchecks
+
+  expvar.NewString("dbConnection")
+  dbConnection.Set("OK")
+
+* Uses http.DefaultServeMux
+
+# Workaround if you're using another router/mux package:
+
+  http.Handle('/debug/vars', http.DefaultServeMux)
+
+* HTML templates
+
+.link http://golang.org/pkg/html/template/
+
+# Standard library package, based on text/template package
+
+* Same syntax as text/template
+
+.link http://golang.org/pkg/text/template/
+
+# Slightly difficult syntax IMO
+
+* Context-aware escaping for safe output
+
+* JSON
+
+Implement the MarshalJSON() interface
+
+.link http://talks.golang.org/2015/json.slide
+
+* Render package
+
+.link https://github.com/unrolled/render
+
+# Easy rendering of JSON, XML, HTML
+# Adds convenience
+# Supports common page layouts
+
+    mux.HandleFunc("/json", func(w http.ResponseWriter, req *http.Request) {
+        r.JSON(w, http.StatusOK, map[string]string{"hello": "json"})
+    })
+
+    mux.HandleFunc("/xml", func(w http.ResponseWriter, req *http.Request) {
+        r.XML(w, http.StatusOK, ExampleXml{One: "hello", Two: "xml"})
+    })
+
+* Databases
+
+* database/sql
+
+# Generic interface for SQL drivers, defined in standard library
+
+.link http://golang.org/pkg/database/sql/
+
+* ORMs(ish)
+
+# ORMs in Golang seems less magic than ORMs you might be used to
+# Mostly about marshalling/unmarshalling data from/to structs
+
+# sqlx is database/sql with some convenience methods
+# i.e. marshall rows into structs, maps, slices
+
+.link https://github.com/jmoiron/sqlx
+
+# Modl combines sqlx and Gorm
+# Didn't support embedded structs
+# API still changing
+
+.link https://github.com/jmoiron/modl
+
+* Gorm
+
+# The standard library SQL package is good, but it's easy to start writing
+# a lot of boilerplace code, e.g. for creating tables
+
+# Gorm seems to have a lot of traction
+# Support for simple, automatic migrations (not removing columns)
+# Supports embedded structs
+
+.link https://github.com/jinzhu/gorm
+
+* Migrations
+
+# As mentioned, Gorm supports automatic migrations
+# For more control, or migrations using database/sql
+
+.link https://bitbucket.org/liamstask/goose
+
+# I was able to use Goose with Gorm by telling Gorm to use an existing connection and passing
+# that to a modified version of Goose
+
+* Form binding
+
+# A way to marshal inputs from forms into structs
+# I have used mholt/binding, YMMV
+
+.link https://github.com/mholt/binding
+
+* Calling out to external services
+
+# New net/context library
+# Not to be confused with HTTP request contexts
+# Allows timeouts to be set for calls to external dependencies, e.g. an API
+
+ When a request is canceled or times out, all the goroutines
+ working on that request should exit quickly so the system
+ can reclaim any resources they are using.
+
+.link https://golang.org/x/net/context
+.link https://blog.golang.org/context
+
+* Running a task with a timeout
+
+  ctx, cancel = context.WithTimeout(context.Background(), timeout)
+
+# Google use this widely internally
+
+* Unit tests
+
+# This topic has already been covered by many other talks and blog posts
+# Start with Go's testing package
+
+.link http://golang.org/pkg/testing/
+
+* net/http/httptest
+
+# Package from Go's standard library
+
+# From the docs: ResponseRecorder is an implementation of http.ResponseWriter
+# that records its mutations for later inspection in tests.
+
+  func httptest.NewRecorder() *ResponseRecorder
+
+* Example: Testing HTTP handlers
+
+# Example from: http://golang.org/pkg/net/http/httptest/#NewRecorder
+.play code/http-newrecorder.go /START OMIT/,/END OMIT/
+
+* Assertions on HTTP handlers
+
+# Part of the Testify test framework
+# Includes a package for mocking
+
+  assert.HTTPSuccess(t, myHandler, "POST", http://www.google.com", nil)
+
+.link https://github.com/stretchr/testify/blob/master/assert/http_assertions.go github.com/stretchr/testify/assert
+
+* Acceptance and integration tests
+
+* net/http/httptest
+
+# Additional control over HTTP server, e.g. mocking an external API
+
+  func NewUnstartedServer(handler http.Handler) *Server
+
+  func (s *Server) Start()
+
+# (*Server).Close() will block until all outstanding requests on this server have completed
+  func (s *Server) Close()
+
+.link https://github.com/alphagov/cdn-acceptance-tests/blob/695555ab251e39272a8c2f398492df24e6082a01/helpers.go#L62-L68 Example: GOV.UK CDN acceptance tests
+
+
+* Agouti package
+
+# By Stephen Levine, works at Pivotal
+
+# Related to the Rspec-like Ginkgo package
+
+# Core can be used stand-alone
+
+.link https://github.com/sclevine/agouti
+
+# Uses WebDriver wire protocol, supports:
+# Selenium
+# ChromeDriver
+# PhantomJS
+# SauceLabs
+
+# I tested ChromeDriver, Selenium and PhantomJS - PhantomJS driving Chrome
+# seems to be the fastest, at least for a small number of requests
+
+- Check for body text
+
+- Test for javascript errors
+
+- Submit forms
+
+* Example using Agouti
+
+# This example uses Agouti core and the 'testing' package from Go's standard library
+# We're not using any matcher library here, just the basics
+
+# I find the Testify Assert package is usually sufficient:
+# https://github.com/stretchr/testify/tree/master/assert
+
+.play code/agouti-acceptance-test.go /START OMIT/,/END OMIT/
+
+# This is a slightly convulted example, since we could check this without
+# running a headless browser
+
+# Note that tests can be run in parallel by invoking t.Parallel()
+
+* Testing concurrent applications
+
+# Injects random sleeps into your code to uncover race conditions
+
+  go test -race ./...
+
+* Application structure
+
+# Depends somewhat if you are using a framework
+# E.g. Beego uses MVC-style structure
+
+* Entry point: main.go
+
+* 
+
+# Recommend initialising variables (e.g. database, logger) in `var` block
+# where possible
+
+# Makes it easy to set defaults if options left undefined
+
+# For multiple return values, move to own method, e.g. initDB()
+
+  var (
+      config = &struct {
+      addr    string
+      debug   bool
+      tlsCert string
+      tlsKey  string
+      }{
+          addr:    os.Getenv("ADDR"),
+          debug:   os.Getenv("DEBUG") != "",
+          tlsCert: os.Getenv("TLS_CERT"),
+          tlsKey:  os.Getenv("TLS_KEY"),
+      }
+
+      mux = pat.New()
+  )
+
+# Make use of structs, i.e. use a config struct for application configuration
+
+*
+
+# Use the init() function for setting defaults, initial state, configure logging
+
+  func init()
+
+# Use main to start the server, set up routes etc
+
+  func main()
+
+* Packages
+
+# Consider putting all of your handlers in a `handler` package
+# You can pass configuration to it (e.g. Oauth client ID/secret) using setter
+# methods
+
+  main/
+    assets/
+    handler/
+    middleware/
+    models/
+
+* Example: Goffee
+
+# Show the example, talk through oauth controller
+
+[[https://github.com/goffee/goffee/tree/master/web][Goffee]]
+
+* Deployment
+
+* mattn/goreman
+
+# Foreman clone written in Go, reads Procfiles
+
+.link https://github.com/mattn/goreman
+
+* Versioning
+
+* 
+
+`.semver` file
+
+* Use a Makefile to define a constant value:
+
+  go build -ldflags "-X main.revision $(SHA) -X main.version $(VERSION)"
+
+# The 'nuts' dependency management tool allows you to specify a version in a
+# TOML text file (like an INI file)
+
+* Go applications can be statically compiled
+
+# Makes them ideal for deploying in containers
+
+  CGO_ENABLED=0 GOOS=linux go build -a -tags netgo -ldflags '-w' .
+  docker build -t username/project .
+
+See: [[https://medium.com/@kelseyhightower/optimizing-docker-images-for-static-binaries-b5696e26eb07][Medium blog article]]
+
+* Pitfalls
+
+* Third party libraries
+
+# Presently, quality of third-party libraries is mixed;
+# there's no strong consensus yet on good reference libraries for common tasks
+
+# Use a dependency management tool (godep, gom, nuts) as APIs can change
+# frequently
+
+# Semver is not widely used
+
+* go build is preferable to go run
+
+# If your main package is spread across multiple files
+
+.link https://github.com/golang/go/issues/5164
+
+# Running `go run` requires you to explicity pass all files
+# you need
+
+* 
+
+Running:
+
+  go run main.go
+
+can cause unexpected behaviour
+
+* Garbage collection pauses
+
+# Go will 'stop the world', i.e. your app, while it cleans up unused memory
+# Can be mitigated by careful coding
+# Not been an issue for us yet, could be for some apps depending on use (e.g. data processing)
+# In version 1.5 (next minor release), pauses should never be longer than 10ms
+
+* Parallelism is easy, concurrency is hard
+
+# Parallism - the capacity do perform tasks in parallel
+# Concurrency - actually performing tasks in parallel
+
+# Go makes light work of adding parallelism to your apps.
+# Humans find concurrency difficult. Easy to introduce race conditions
+# if you're not used to multi-threaded programming.
+
+# Use the sync package from standard library, embed the interfaces in your own types
+
+* Conclusions
+
+* Keep it simple
+
+- Go makes it easy to perform low-level operations
+
+# This is an advantage. Simple low-level operations mean performance benefits
+
+- Use the interfaces
+
+# Go's interfaces are very powerful; any frameworks/toolkits you choose should
+# build on the ones provided by the standard library
+
+* Go is not Ruby
+
+# Most friction encounted with Go caused by treating it like another language
+# Mocking possible, but not as easy as Rspec
+
+* Depdency management
+
+# Not fully resolved, Godep, Gom and Nuts look promising
+
+* Web app examples
+
+[[https://github.com/goffee/goffee/tree/master/web][Goffee]]
+
+# Goffee uses Goji
+[[https://github.com/drone/drone/tree/master/server][Drone]]
+
+# Also uses Goji
+
+[[https://github.com/alphagov/cdn-acceptance-tests][GOV.UK CDN acceptance tests]]
+
+# Standard library only
+
+[[https://github.com/golang/gddo/tree/master/gddo-server][Godoc]]
+
+# Also standard library
+
+* Join the mailing list
+
+.link mailto:gds-topic-golang-discuss@digital.cabinet-office.gov.uk gds-topic-golang-discuss@digital.cabinet-office.gov.uk
+
+* Thank you
+
+Code examples and presenter notes can be found at:
+
+.link https://github.com/mattbostock/talks/tree/master/go-building-web-apps http://git.io/baPr
