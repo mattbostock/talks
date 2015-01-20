@@ -1,0 +1,8 @@
+image: go1.2
+
+services:
+  - redis
+  - rabbitmq
+
+script:
+  - make

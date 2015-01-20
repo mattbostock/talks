@@ -1,0 +1,275 @@
+Using Docker for CI builds
+21 Jan 2015
+Tags: ci, containers, docker, jenkins, drone, travis
+
+Matt Bostock
+Web Operations Engineer
+Government Digital Service
+@mattbostock
+
+* I work on infrastructure for GOV.UK
+
+* We've been using Jenkins
+
+# ...for some time
+
+* Jenkins is pretty good
+
+# very configurable
+
+# lots of plugins
+
+# ...but...
+
+* Jenkins is also hard to configure
+
+.image images/jenkins-rage.png
+
+# we use Puppet
+
+# we've looked at Jenkins Job Builder
+
+# XML anyone? everyone loves a Java backtrace
+
+* Setting up new jobs was slow
+
+# Configure a web hook
+
+# We have a Python tool (gh-tools) to update build status
+
+* Should a CI server be this complicated? ¯\_(ツ)_/¯
+
+* We started looking at alternatives
+
+* Our requirements:
+
+- build tagging
+
+- hosting or publishing of artefacts
+
+- GitHub build status
+
+* Our requirements:
+
+- integration with in-house GitHub Enterprise
+
+- user management via GitHub Oauth
+
+- support 80+ developers/engineers
+
+* ...and ideally
+
+- matrix builds
+
+- modularity
+
+# Spoilt by Jenkins
+
+* Why Docker?
+
+# Not Docker in particular; rather _containers_
+
+# Docker is convenient; has wide adoption
+
+# We need something that runs on Linux
+
+* Rather, why containers?
+
+* Better isolation of test dependencies
+
+# Most significant benefit for us:
+# What project was it that needed this version of Mongo again?
+
+# Prevent bleed between dependencies
+
+* Readily available images
+
+# Ruby? Check. PostgreSQL? Check. Golang? Check.
+
+# Docker now has official language stacks:
+# http://blog.docker.com/2014/09/docker-hub-official-repos-announcing-language-stacks/
+
+# No more futzing with Puppet just to run a build
+
+* Run integration tests on a full OS
+
+# E.g. Test our Puppet code on different Ubuntu versions
+
+* Set up, tear down
+
+# Excellent isolation of individual builds
+
+* We evaluated three solutions
+
+# Using Vagrant for quick litmus test
+
+- Jenkins plus [[https://github.com/groupon/DotCi][DotCI plugin]]
+
+- [[https://github.com/drone/drone][Drone]]
+
+- [[https://enterprise.travis-ci.com][Travis Enterprise]]
+
+* All three run builds using Docker
+
+* DotCI
+
+- Developed by Groupon
+
+- Open source
+
+[[https://github.com/groupon/DotCi]]
+
+* Jenkins, but not as we know it
+
+- Automatically sets up GitHub webhooks for pull requests
+
+- Sets commit status during and after build run
+
+# Requires MongoDB
+
+* Felt 'tacked on' to Jenkins
+
+# Poor user experience
+
+* We didn't get it working
+
+# Your Mileage May Vary
+
+* Travis Enterprise
+
+[[https://enterprise.travis-ci.com]]
+
+.image images/travis-org-matrix-builds.png _ 950
+
+
+* Paid, supported by Travis CI
+
+* We already use travis-ci.org
+
+For our [[http://gds-operations.github.io/][open source projects]]
+
+# Open source projects run for free
+
+# But we should have faster builds on an in-house solution
+# running just our builds
+
+* Familiar
+
+* Quick quick to get running
+
+# Uses RabbitMQ for worker queue
+
+* Configure using .travis.yml
+
+# In repo root
+
+.code code/.travis.yml
+
+* Supports matrix builds
+
+.image images/travis-org-matrix-builds.png _ 950
+
+# Allow failures on future versions
+
+* Only supports one GitHub instance
+
+# Can't use both GitHub.com and GitHub Enterprise at once
+
+* Drone
+
+Developed by [[https://drone.io][drone.io]] to replace their current codebase
+
+.image images/drone-build-success.png _ 950
+
+* Open source
+
+# https://www.gov.uk/service-manual/making-software/open-source.html
+# https://gds.blog.gov.uk/2012/10/12/coding-in-the-open/
+
+* Simple UI
+
+# Also has an API
+
+.image images/drone-repos.png _ 950
+
+* Young project
+
+# ~1 year
+
+# Still maturing
+
+* Active open source community
+
+* Modular
+
+# Support for GitHub, GitLab, Bitbucket...
+
+* Very simple to set up
+
+ DRONE_GITHUB_CLIENT="123" DRONE_GITHUB_SECRET="xyz" ./droned
+
+# Single binary
+
+# SQLite or PostgreSQL
+
+# Auth using GitHub
+
+# 'Activate' button for repositories
+
+# Conceptually similar to Travis to configure new jobs using YAML file in repository root
+
+* Configure using .drone.yml
+
+# Can specify any image from Docker Registry
+
+.code code/.drone.yml
+
+* Ready-made services
+
+# In common with Travis
+
+* It just works
+
+* Doesn't support matrix builds
+
+[[https://github.com/drone/drone/issues/6]]
+
+* Still maturing
+
+# Error handling (blank pages)
+
+# Some features not yet in UI (e.g. disable repo, promote user to admin)
+
+# New UI expected soon
+
+* Conclusions
+
+# Drone is very promising and most meets our needs. Matrix builds would be nice to see.
+
+# Waiting for more feedback from developers at end of evaluation period
+
+# Travis is great, but need to balance cost over benefit
+
+# There are good alternatives to Jenkins and they are much simpler to configure
+
+# We got an evaluation copy of Drone running in half an hour
+
+* Beware potential pitfalls:
+
+- Check the provenance of your Docker images; use official or trusted repos where possible
+
+# Also check the underlying layers
+
+- Linux containers do not provide security isolation
+
+# Make sure you trust the users running builds on your server
+
+* Contribute to Drone!
+
+[[https://github.com/drone/drone]]
+
+* Thank you
+
+We're hiring!
+
+[[https://gds.blog.gov.uk/jobs/]]
