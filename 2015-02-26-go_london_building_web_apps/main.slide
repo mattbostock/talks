@@ -7,28 +7,13 @@ WebOps, Government Digital Service
 GOV.UK Infrastructure and Tools Team
 @mattbostock
 
-# Some of the links shown to packages are the canonical package paths, not real
+
+# Links shown to packages are the canonical package paths, not real
 # GitHub links, use them with `go get`
 
-* What's a web app?
+* Why consider Go for web apps?
 
-# Indirectly, or directly:
-
-# A computer program that binds to a network port and responds to concurrent
-# HTTP requests according to the parameters provided by user agents (i.e., the clients)
-
-* A brief history of Go
-
-* Open source, developed by Google
-
-# Go is a systems language, open source, developed by Google
-# Five years old
-# Very stable API with a compatibility promise for all version 1.x releases
-# Small team built core of language, inc. Ken Thompson (designed Unix, UTF8, B) and Rob Pike (Unix, UTF8, Plan9)
-
-Link: [[http://talks.golang.org/2012/splash.article][Google's rationale for Go]]
-
-* Minimal design
+* Simple, minimal design
 
 # From http://www.drdobbs.com/open-source/interview-with-ken-thompson/229502480
 
@@ -47,7 +32,7 @@ Link: [[http://talks.golang.org/2012/splash.article][Google's rationale for Go]]
 
 * Statically typed
 
-# Which sounds tedious but makes debugging much easier
+# Makes debugging much easier
 # Garbage-collected, like Ruby, Python, etc.
 
 * Lightweight OO
@@ -56,8 +41,6 @@ Link: [[http://talks.golang.org/2012/splash.article][Google's rationale for Go]]
 # Any type can satisfy an interface if it has the right methods
 
 .link https://www.youtube.com/watch?v=HqZQBmNVhBw DotGo talk: Go is object orientated
-
-* Why consider Go for web apps?
 
 * Go is fast
 
@@ -78,7 +61,7 @@ Link: [[http://talks.golang.org/2012/splash.article][Google's rationale for Go]]
 # Concept of go routines, which are like lightweight threads
 # Web applications, directly or indirectly, handle multiple concurrent requests
 
-* crypto/tls
+* Excellent standard library
 
 .link http://golang.org/pkg/crypto/tls/
 
