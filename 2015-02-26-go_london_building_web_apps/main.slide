@@ -12,7 +12,7 @@ GOV.UK Infrastructure and Tools Team
 # Some of the links shown to packages are the canonical package paths, not real
 # GitHub links, use them with `go get`
 
-# I'll try to elucidate some key concepts and provide links with futher information
+# I'll try to elucidate some key concepts and provide links with further information
 # If you're not sure about something, please ask at the end
 
 * What's a web app?
@@ -28,7 +28,7 @@ GOV.UK Infrastructure and Tools Team
 
 # Go is a systems language, open source, developed by Google
 # Five years old
-# Very stable API with a compatability promise for all version 1.x releases
+# Very stable API with a compatibility promise for all version 1.x releases
 # Small team built core of language, inc. Ken Thompson (designed Unix, UTF8, B) and Rob Pike (Unix, UTF8, Plan9)
 
 Link: [[http://talks.golang.org/2012/splash.article][Google's rationale for Go]]
@@ -323,7 +323,7 @@ Provides us with a HTTP server
 
 .link https://github.com/alext/tablecloth
 
-* Asset piplelines?
+* Asset pipelines?
 
 # Still maturing
 
@@ -395,7 +395,7 @@ Match URL endpoints to HTTP handlers
 
 * First-class feature in some frameworks
 
-# Goji takes a context as an argument to its own implentation of HTTP handlers
+# Goji takes a context as an argument to its own implementation of HTTP handlers
 
 - [[https://github.com/zenazn/goji][Goji]]
 
@@ -606,7 +606,7 @@ Implement the MarshalJSON() interface
 * Gorm
 
 # The standard library SQL package is good, but it's easy to start writing
-# a lot of boilerplace code, e.g. for creating tables
+# a lot of boilerplate code, e.g. for creating tables
 
 # Gorm seems to have a lot of traction
 # Support for simple, automatic migrations (not removing columns)
@@ -731,7 +731,7 @@ Implement the MarshalJSON() interface
 
 .play code/agouti-acceptance-test.go /START OMIT/,/END OMIT/
 
-# This is a slightly convulted example, since we could check this without
+# This is a slightly convoluted example, since we could check this without
 # running a headless browser
 
 # Note that tests can be run in parallel by invoking t.Parallel()
@@ -852,7 +852,7 @@ See: [[https://medium.com/@kelseyhightower/optimizing-docker-images-for-static-b
 
 .link https://github.com/golang/go/issues/5164
 
-# Running `go run` requires you to explicity pass all files
+# Running `go run` requires you to explicitly pass all files
 # you need
 
 * 
@@ -872,7 +872,7 @@ can cause unexpected behaviour
 
 * Parallelism is easy, concurrency is hard
 
-# Parallism - the capacity do perform tasks in parallel
+# Parallelism - the capacity do perform tasks in parallel
 # Concurrency - actually performing tasks in parallel
 
 # Go makes light work of adding parallelism to your apps.
@@ -896,7 +896,7 @@ can cause unexpected behaviour
 
 * Go is not Ruby
 
-# Most friction encounted with Go caused by treating it like another language
+# Most friction encountered with Go caused by treating it like another language
 # Mocking possible, but not as easy as Rspec
 
 * Depdency management
