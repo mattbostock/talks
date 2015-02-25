@@ -1,5 +1,5 @@
 Building web apps in Go
-6 Feb 2015
+26 Feb 2015
 Tags: web, middleware, logging, monitoring, healthcheck
 
 Matt Bostock
@@ -7,13 +7,8 @@ WebOps, Government Digital Service
 GOV.UK Infrastructure and Tools Team
 @mattbostock
 
-# Not everyone here will be familiar with Go
-
 # Some of the links shown to packages are the canonical package paths, not real
 # GitHub links, use them with `go get`
-
-# I'll try to elucidate some key concepts and provide links with further information
-# If you're not sure about something, please ask at the end
 
 * What's a web app?
 
@@ -920,12 +915,11 @@ can cause unexpected behaviour
 
 # Also standard library
 
-* Join the mailing list
-
-.link mailto:gds-topic-golang-discuss@digital.cabinet-office.gov.uk gds-topic-golang-discuss@digital.cabinet-office.gov.uk
-
 * Thank you
 
-Code examples and presenter notes can be found at:
+We're hiring!
 
-.link https://github.com/mattbostock/talks/tree/master/go-building-web-apps http://git.io/baPr
+[[https://gds.blog.gov.uk/jobs/]]
+
+Code examples and slide notes can be found at:
+[[http://git.io/AN3n]]
