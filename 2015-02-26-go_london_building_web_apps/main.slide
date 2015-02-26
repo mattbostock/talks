@@ -790,6 +790,16 @@ Implement the MarshalJSON() interface
 
 .link https://github.com/mattn/goreman
 
+* Docker
+
+# Use the 'onbuild' official Go Dockerfile
+
+  $ cat Dockerfile
+  FROM golang:onbuild
+  EXPOSE 8080
+
+.link https://blog.golang.org/docker
+
 * Versioning
 
 * 
