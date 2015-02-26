@@ -139,6 +139,36 @@ Provides us with a HTTP server
 # No Nginx necessary (though need to consider privileged ports)
 # Slow clients not an issue
 
+* Generate a test certificate
+
+    go run $GOROOT/src/crypto/tls/generate_cert.go -host localhost
+
+# Save it to your test fixtures directory
+
+* Disable SSLv3 to prevent POODLE
+
+  c := &tls.Config{MinVersion: tls.VersionTLS10}
+  s := &http.Server{Addr: ":8443", Handler: nil, TLSConfig: c}
+  s.ListenAndServeTLS("cert.pem", "key.pem")
+
+# This is fixed in Go 1.5, default will be TLS 1.0
+
+* Add HTTP/2
+
+# Still in development on Bradfitz' GitHub account
+# Add HTTP/2 to your existing server
+
+  c := &tls.Config{MinVersion: tls.VersionTLS10}
+  s := &http.Server{Addr: ":8443", Handler: nil, TLSConfig: c}
+  http2.ConfigureServer(s, nil)
+  s.ListenAndServeTLS("cert.pem", "key.pem")
+
+# Only worth doing over TLS (browser support); capable user agents will
+# negotiate up to HTTP/2
+
+.link https://http2.golang.org/gophertiles
+.link https://github.com/bradfitz/http2
+
 * The HTTP handler interface
 
 # The whole of Go's HTTP server implementation is based around one simple
