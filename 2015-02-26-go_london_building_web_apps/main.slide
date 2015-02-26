@@ -784,7 +784,7 @@ Implement the MarshalJSON() interface
 
 * Deployment
 
-* mattn/goreman
+* goreman for Procfiles
 
 # Foreman clone written in Go, reads Procfiles
 
