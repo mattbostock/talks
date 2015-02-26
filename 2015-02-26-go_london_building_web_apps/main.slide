@@ -7,6 +7,23 @@ WebOps, Government Digital Service
 GOV.UK Infrastructure and Tools Team
 @mattbostock
 
+* 
+
+# I work on GOV.UK as a WebOps Engineer
+
+# Single domain for all of government
+
+# We transitioned over 300 agencies, quangos and departments to GOV.UK in 15 months
+
+# Around 12 million unique visitors per week
+
+.image images/gov_uk.svg _ 900
+
+# Several applications written in Go including our HTTP router and a handful of API services
+
+* We code in the open
+
+Our Go repositories: [[https://git.io/xvDA]]
 
 # Links shown to packages are the canonical package paths, not real
 # GitHub links, use them with `go get`
