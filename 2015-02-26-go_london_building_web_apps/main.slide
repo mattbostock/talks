@@ -595,10 +595,16 @@ Implement the MarshalJSON() interface
 
 * Form binding
 
-# A way to marshal inputs from forms into structs
+# A way to marshal inputs from forms into structs and validation
 # I have used mholt/binding, YMMV
 
 .link https://github.com/mholt/binding
+
+or:
+
+# For HTTP POSTs
+
+  m := r.FormValue("message")
 
 * Calling out to external services
 
