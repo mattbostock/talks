@@ -709,7 +709,6 @@ or:
 
 .link https://github.com/alphagov/cdn-acceptance-tests/blob/695555ab251e39272a8c2f398492df24e6082a01/helpers.go#L62-L68 Example: GOV.UK CDN acceptance tests
 
-
 * Agouti package
 
 # By Stephen Levine, works at Pivotal
@@ -734,6 +733,9 @@ or:
 - Test for javascript errors
 
 - Submit forms
+
+# I put my acceptance tests in the main package, call main() in a goroutine
+# then block until I get a connection
 
 * Example using Agouti
 
