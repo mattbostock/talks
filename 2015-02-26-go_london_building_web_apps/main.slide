@@ -375,10 +375,19 @@ Match URL endpoints to HTTP handlers
 
 # This makes it slower than the pat package
 
+# Put most specific routes first
+
   r := pat.New()
-  r.Get("/articles/{category}/{id:[0-9]+}", ArticleHandler)
-  r.Get("/articles/{category}/", ArticlesCategoryHandler)
-  r.Get("/products/{key}", ProductHandler)
+  r.NotFoundHandler = http.NotFoundHandler()
+  r.Get("/articles/{category}/{id:[0-9]+}", handler.Article)
+  r.Get("/articles/{category}/", handler.Articles)
+  r.Get("/products/{key}", handler.Products)
+
+  r.Handle("/", http.HandlerFunc(handler.Index))
+
+# Specify root path (slash) using r.Handle, otherwise non-existing routes will
+# hit your index handler - causes havoc with one-time cookies being set for
+# non-existent favicons
 
 * httprouter
 
