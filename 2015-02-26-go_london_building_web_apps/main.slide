@@ -911,10 +911,12 @@ can cause unexpected behaviour
 # Not been an issue for us yet, could be for some apps depending on use (e.g. data processing)
 # In version 1.5 (next minor release), pauses should never be longer than 10ms
 
-* Parallelism is easy, concurrency is hard
+* Parallelism is easy in Go, concurrency is hard for humans
 
-# Parallelism - the capacity do perform tasks in parallel
-# Concurrency - actually performing tasks in parallel
+  Concurrency is about dealing with lots of things at once.
+  Parallelism is about doing lots of things at once.
+
+  -- Rob Pike
 
 # Go makes light work of adding parallelism to your apps.
 # Humans find concurrency difficult. Easy to introduce race conditions
