@@ -87,7 +87,7 @@ GOV.UK Infrastructure and Tools Team
 
 # Beego is very popular in China
 # Seems to have a lot of traction
-# Seems like the closest thing to Rails
+# One of the larger frameworks
 # But still composable, you can pick the parts you need
 
 - [[https://github.com/codegangsta/negroni][Negroni]]; [[https://justinas.org/alice-painless-middleware-chaining-for-go/][Alice]]
