@@ -481,15 +481,6 @@ Match URL endpoints to HTTP handlers
 
   log.AddHook(&logrus_airbrake.AirbrakeHook{})
 
-* Which framework to use?
-
-# Recommend trying Negroni and Goji for simple applications
-# Perhaps Beego is better suited to larger applications
-
-# TigerTonic for JSON APIs
-
-# YMMV, try them out; look at examples (I'll provide some at the end)
-
 * Application healthcheck
 
 .link http://golang.org/pkg/expvar/
