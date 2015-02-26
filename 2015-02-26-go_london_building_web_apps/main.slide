@@ -754,7 +754,7 @@ Implement the MarshalJSON() interface
 
 # Make use of structs, i.e. use a config struct for application configuration
 
-*
+* 
 
 # Use the init() function for setting defaults, initial state, configure logging
 
