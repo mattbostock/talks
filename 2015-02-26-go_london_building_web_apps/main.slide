@@ -937,7 +937,7 @@ can cause unexpected behaviour
 # Go's interfaces are very powerful; any frameworks/toolkits you choose should
 # build on the ones provided by the standard library
 
-* Go is not Ruby
+* Go is not Ruby or Java
 
 # Most friction encountered with Go caused by treating it like another language
 # Mocking possible, but not as easy as Rspec
