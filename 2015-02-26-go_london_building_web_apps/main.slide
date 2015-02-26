@@ -784,6 +784,21 @@ Implement the MarshalJSON() interface
 
 * Deployment
 
+* Heroku
+
+# Make sure you respect the PORT environment variable
+
+  http.ListenAndServe(":" + os.Getenv("PORT"), nil)
+
+# Assuming you're already in a Git repo
+ 
+
+  $ echo 'web: myapp' > Procfile
+  $ heroku create -b https://github.com/kr/heroku-buildpack-go.git
+  $ git push heroku master
+
+  $ heroku logs --tail
+
 * goreman for Procfiles
 
 # Foreman clone written in Go, reads Procfiles
