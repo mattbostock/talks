@@ -1,0 +1,195 @@
+HTTP/2: What, how and why?
+17 Apr 2015
+Tags: web, http, protocol, spdy, performance
+
+Matt Bostock
+WebOps, Government Digital Service
+GOV.UK Infrastructure and Tools Team
+@mattbostock
+
+# This talk is about:
+
+* A brief history of HTTP
+
+* What HTTP/2 does differently
+
+* What that means for the web
+
+* HTTP 0.9
+
+# Defined in 1991, really simple
+# Uses port 80; one connection per request; connection closed when response has been sent
+# Support for ASCII HTML and plain text
+
+  GET /
+
+  <!DOCTYPE HTML PUBLIC "-//IETF//DTD HTML 2.0//EN">
+  <HTML>
+    ...
+  </HTML>
+
+  (connection closed)
+
+# Fairly limited
+
+* HTTP/1.0
+
+# Defined by information RFC (not standard) 1945 documenting "common usage" HTTP implementations
+# Allows for metadata (headers) to describe content type etc.
+
+# New TCP connection for each request
+
+* HTTP/1.1
+
+# 1999: RFC2616; recently superseded in 2014 by RFCs 7230-35
+
+# Supported keep-alive connections (multiple serial requests per connection);
+# keep-alive functionality ported back to HTTP 1.0 Chunked transfer and range
+# requests
+
+# Pipelining aimed to prevent head-of-line blocking at the application layer by
+# sending multiple requests without waiting for their corresponding responses
+# Pipelining has limitations; POSTs can't be pipelined, browser support is limited
+# due to unreliable server behaviour; limited support in proxies
+
+# Problems: Not efficient on network; latency and head-of-line blocking
+
+* How HTTP/2 came about
+
+* First there was SPDY
+
+# Experimental protocol developed by Google
+
+* SPDY high-level goals
+
+- Reduce latency, signifcant problem with HTTP/1.1
+- 50% reduction in page-load time
+- Slot-in replacement; re-use TCP, HTML
+
+# Avoid web site authors having to make changes to their content to accomodate SPDY
+
+* SPDY technical goals
+
+- Multiple concurrent requests per connection
+- Reduce bandwidth using header compression
+- Use SSL as its transport protocol
+- Support server push
+
+* Then came HTTP/2
+
+# Build on the work done in SPDY with the aim of reducing latency
+
+# IETF httpbis Working Group charter introduced in January 2012
+
+  There is emerging implementation experience and interest
+  in a protocol that retains the semantics of HTTP without
+  the legacy of HTTP/1.x message framing and syntax, which
+  have been identified as hampering performance and
+  encouraging misuse of the underlying transport.
+
+.caption -- [[https://datatracker.ietf.org/wg/httpbis/charter/][httpbis Working Group charter]]
+
+* HTTP/2 is a binary framing layer
+
+# HTTP/2 is binary protocol; retains exiting HTTP 1.1 semantics
+# More efficient using multiplexing and header compression (HPACK)
+
+# Support TCP but also other transports
+
+# HTTP/2 not HTTP/2.0; there's a whole RFC on HTTP versioning so keep
+#it simple
+
+# Text protocols simple but hard to parse reliably and repeatably
+
+# Some browsers only support it over TLS; using over HTTP difficult
+# because of support by proxies
+
+* How it works
+
+# Binary protocol
+# Supports flow control
+# Multiple streams per connection
+# Request-response belong to same stream ID
+# One connection per user agent
+# Uses header compression contexts over lifetime of connection (like a
+# compression dictionary)
+
+* Design
+
+# Inherently concurrent
+# Stateful; steams and header compression contexts
+
+* HPACK header compression
+
+# Addresses CRIME attack on SPDY DEFLATE compression
+# Slightly less efficient than SPDY but more secure
+
+* Advantages over HTTP/1.1
+
+# Head-of-line blocking no longer an issue at application layer
+# TCP handshake and TLS negotiation much reduced
+# User-perceived latency much reduced
+
+* Limitations and disadvantages
+
+# Not immune to TCP head-of-line blocking
+
+# One TCP connection means initial TCP congestion window reduced
+# compared to multiple connections
+
+# Inherently asynchronous and concurrent; hard to reason about
+
+# Binary protocol; not human-readable
+
+# Stateful; more difficult to bug (need context)
+# See Corey's video
+
+* Impact on web development
+
+# domain sharding no longer needed
+# sprites, resource inlining less important
+# no need to concatenate stylesheets/javascript - better caching
+
+* How compatible is it with HTTP/1.1?
+
+# Retains HTTP semantics
+# No changes to headers or HTML
+# Using TLS, use of HTTP/2 is negotiated using ALPN during TLS ClientHello
+# Using plain HTTP, use 'Upgrade' header to change protocols
+
+* Browser implementations
+
+- Chrome (version 41)
+- Firefox (version 36)
+- Internet Explorer 11 (Windows 10 beta)
+- Opera (version 28)
+
+* Server implementations
+
+# Wider support for SPDY, now obseleted by HTTP/2
+
+- nginx support by end of 2015
+- See HTTP/2 [[https://github.com/http2/http2-spec/wiki/Implementations][GitHub Wiki for implementations]]
+
+* Find out more
+
+.link https://www.chromium.org/spdy/spdy-whitepaper SPDY whitepaper
+.link http://http2.github.io/http2-spec/ HTTP2 spec (RFC Editor's copy)
+.link http://daniel.haxx.se/http2/ Daniel Stenberg (Mozilla, Curl)
+
+* Videos
+
+.link https://youtu.be/OQ158bJPvx4 Mark Nottingham (IETF HTTP Working Group; Akamai)
+.link https://youtu.be/ACXVyvm5eTc Cory Benfield on HTTP/2 and Python
+.link http://ftp.osuosl.org/pub/fosdem/2015/devroom-go/http2_go.mp4 Brad Fitzpatrick on the HTTP/2 in Go
+
+* Read this book
+
+.image images/hpbncover.jpg _ 200
+
+.caption [[http://chimera.labs.oreilly.com/books/1230000000545/ch12.html][High Performance Browser Networking]] by [[https://twitter.com/igrigorik][Ilya Grigorik]]
+
+* Thank you
+
+Slides at:
+[[http://git.io/xzIm]]
