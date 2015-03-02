@@ -959,7 +959,7 @@ can cause unexpected behaviour
 # Most friction encountered with Go caused by treating it like another language
 # Mocking possible, but not as easy as Rspec
 
-* Depdency management
+* Dependency management
 
 # Not fully resolved, Godep, Gom and Nuts look promising
 
