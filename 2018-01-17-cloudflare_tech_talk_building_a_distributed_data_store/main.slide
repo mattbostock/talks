@@ -1,0 +1,717 @@
+Designing and building a distributed data store
+17 Jan 2018
+Tags: golang, timbala, prometheus, tsdb, distributed systems, hashring, consistent hashing
+
+Matt Bostock
+Platform Operations Engineer
+Cloudflare
+@mattbostock
+
+* Who am I?
+
+Work on the Platform Operations team in London
+
+Interested in distributed systems and performance
+
+* Bulding and designing a distributed data store
+
+* What I will (and won't) cover in this talk
+
+MSc Computer Science final project
+
+: The data being stored is metrics but this is not a talk about metrics; though
+: metrics have interesting properties that make them easier to work with
+: in distributed systems
+
+* Personal project
+
+Expect another talk soon about our plans for long-term storage
+
+* Timbala
+
+.image timbala_logo_horizontal.svg
+
+: project was called AthensDB, now renamed to Timbala
+: this is the second logo
+: distributed time-series database
+
+: Going to cover a lot of ground, intention is not to explain every concept but give an overview
+: Distributed systems is a huge topic, I won't be able to explain everything but hopefully you'll take something away
+: This is really a talk about how I approached this problem, with some leads on techniques/algorithms you might use
+
+* What's 'distributed'?
+
+"A distributed system is a model in which components located on networked computers communicate and coordinate their actions by passing messages."
+
+-- Wikipedia
+
+: the coordination part is really hard, as we'll find out
+
+* Why distributed?
+
+Survive the failure of a single server
+
+Add more servers to meet demand
+
+: horizontal scaling
+
+* Fallacies of distributed computing
+
+: L Peter Deutsch (L is his legal name) and others at Sun Microsystems
+
+The network is reliable.
+Latency is zero.
+Bandwidth is infinite.
+The network is secure.
+Topology doesn't change.
+There is one administrator.
+Transport cost is zero.
+The network is homogeneous.
+
+: makes building this kind of system fun
+
+* Use case
+
+Durable long-term storage for metrics
+
+: time-series database capable of reliably storing multidimensional
+: metrics over a period of 10 years or more and capable of storing more metrics
+: than can be accommodated by a single commodity server.
+
+* Why not use 'the Cloud'?
+
+: Wouldn't make for a good master's project
+
+: intended for:
+
+- On-premise, mid-sized deployments
+: don't necessarily want the hassle of operating Hadoop or Ceph
+
+- High performance, low latency
+- Ease of operation
+
+* Requirements
+
+* Sharding
+
+: sharding == spreading data across multiple servers by splitting it up into chunks called shards
+
+The database must be able to store more data than could fit on a single node.
+
+* Replication
+
+The system must replicate data across multiple nodes to prevent data loss when
+individual nodes fail.
+
+: replicas are copies of the data, in case we lose a copy
+
+* High availability and throughput for data ingestion
+
+Must be able to store a lot of data, reliably
+
+: humans can retry queries
+: but we don't want to delay data from being stored in the system as we'll be querying outdated data and it'll backlog (back pressure)
+
+* Operational simplicity
+
+: it must be simple to operate and maintain
+: keep configuration options to a minimum (less to get wrong)
+: good instrumentation (logging, metrics and tracing)
+
+* Interoperability with Prometheus
+
+Reuse Prometheus' best features
+
+: including the query language (PromQL), APIs, and data model.
+
+Avoid writing my own query language and designing my own APIs
+
+Focus on the 'distributed' part
+
+: in itself hard enough
+
+* By the numbers
+
+: to help frame the problem, I looked at our own usage for long-term metrics storage
+
+Cloudflare's OpenTSDB installation:
+
+- 700k (now 800k) data points per second
+- 70M unique timeseries
+
+* Minimum Viable Product (MVP)?
+
+: hard to determine
+: where do you start?
+: helped to think about ingestion versus querying (read versus write paths)
+
+* How to reduce the scope?
+
+: what parts can I avoid doing myself?
+
+Reuse third-party code wherever possible
+
+: PromQL library; API code
+
+* Milestone 1: Single-node implementation
+
+: storage is going to be hard, let's get it working for one node
+
+Ingestion API
+
+: get data in
+
+Query API
+
+: get data out
+
+Local, single node, storage
+
+* Milestone 2: Clustered implementation
+
+1. Shard data between nodes (no replication yet)
+
+2. Replicate shards
+
+3. Replication rebalancing using manual intervention
+
+* Beyond a minimum viable product
+
+Read repair
+
+: As you're reading data, compare results across nodes and fill in the gaps as they're spotted
+
+Hinted handoff
+
+: Temporarily store data on behalf of other nodes that may be temporarily failing
+
+Active anti-entropy
+
+: Asynchronous (background) process that compares data between nodes and fills in the gaps
+: Could also be used for automatic rebalancing
+
+* To the research!
+
+: First thing I did was read a ton
+: Good news is there's a wealth of good material of distributed systems and how to optimise them
+: Bad news is, most of these things won't help me get started
+
+NUMA
+Data/cache locality
+SSDs
+Write amplification
+Alignment with disk storage, memory pages
+mmap(2)
+Jepsen testing
+Formal verification methods
+Bitmap indices
+xxHash, City hash, Murmur hash, Farm hash, Highway hash
+
+: Nice to have, but need to start small
+
+* Back to the essentials
+
+: consensus, or lack of
+
+: cap theorem
+
+Coordination
+
+: OK log
+
+Indexing
+
+: AKA how do you find the data quickly? also on other nodes in the cluster, not just the local node
+
+On-disk storage format
+
+: efficient storage
+
+Cluster membership
+
+: how do you know which servers are online? when to determine that they've failed?
+
+Data placement (replication/sharding)
+
+: how to determine where data should go, so that it can be written and accessed quickly?
+
+Failure modes
+
+: how many replicas should we write before considering the data to be 'safe'?
+: how many replicas do we need to consider we have enough data to successfully serve a read query?
+
+* Traits (or assumptions) of time-series data
+
+: let's try to understand the problem space a bit better
+
+* Immutable data
+
+No updates to existing data!
+
+: good news folks
+: simplifies the system substantially
+
+No need to worry about managing multiple versions of the same value and copying (replicating) them between servers
+
+: relaxes our requirements for consistency
+: makes for an easier introduction to a distributed system
+
+* Simple data types; compress well
+
+Don't need to worry about arrays or strings
+
+: just numbers
+: some TSDBs do store non-numeric data, e.g. InfluxDB
+
+Double-delta compression for floats
+
+: see Facebook's Gorilla paper
+# TODO give example?
+
+* Tension between write and read patterns
+
+Continous writes across majority of individual time-series
+
+Occasional reads for small subsets of time-series across historical data
+
+: problem consists of trying to demultiplexing (or splitting) writes into files that allow for fast queries without accessing all timeseries
+
+* Prior art
+
+: I won't go into detail now as I wouldn't be able to them justice, but these designs had a lot of influence on my design
+
+Amazon's Dynamo paper
+
+: not the same as Amazon DynamoDB
+
+Apache Cassandra
+
+Basho Riak
+
+: use of consistent hashing to determine data placement within the cluster
+: mechanisms for repairing data (active anti-entropy, read repair and hinted handoff as we'll discuss in a moment)
+
+Google BigTable
+
+: columnar storage
+
+Other time-series databases
+
+: OpenTSDB, InfluxDB, DalmatinerDB, Facebook's Gorilla, and more
+
+* Coordination
+
+: oklog article
+: helped to frame the problem
+: I was too focused on consensus at the start even though I didn't yet know what state should be shared between nodes in the cluster
+
+Keep coordination to a minimum
+
+: it's hard to do correctly, each server has its own view of the world
+
+Avoid coordination bottlenecks
+
+: updating a centralised or syncrhonous index on every write would be a bottleneck on performance
+
+* Cluster membership
+
+Need to know which nodes are in the cluster at any given time
+
+Could be static, dynamic is preferable
+
+Need to know when a node is dead so we can stop using it
+
+* Memberlist library
+
+I used Hashicorp's Memberlist library
+
+: really easy to use
+
+Used by Serf and Consul
+
+Uses the SWIM gossip protocol
+
+: the nodes in the cluster 'gossip' to each other over UDP
+: occasional 'reliable' sync using TCP
+: nodes that don't respond for a given grace period are considered dead
+: but nodes can be checked indirectly, meaning nodes can 'snitch' on the status of other nodes they're connected to
+
+* Indexing
+
+: AKA how do you find the data quickly? also on other nodes in the cluster, not just the local node
+
+* What to index
+
+Metric name and label name
+
+Metric label values
+
+* Could use a centralised index
+
+Consistent view; knows where each piece of data should reside
+
+Index needs to be replicated in case a node fails
+
+Likely to become a bottleneck at high ingestion volumes
+
+Needs coordination, possibly consensus
+
+: could be asynchonous and eventually consistent given that metrics are immutable
+
+* Could use a local index
+
+Each node knows what data it has
+
+: but how to know what other nodes have?
+: look at prior art, maybe consistent hashing similar to how Dynamo, Cassandra and Riak work?
+
+* Data placement (replication/sharding)
+
+: how to determine where data should go, so that it can be written and accessed quickly?
+
+* Consistent hashing
+
+: decided to use consistent hashing
+
+Hashing uses maths to put items into buckets
+
+: in this case, those buckets are servers
+
+Consistent hashing aims to keep disruption to a minimum when the number of buckets changes
+
+: in our case, we want to minimise how much data moves to a different server when the number of servers in a cluster changes
+
+* First attempt: Karger et al (Akamai) algorithm
+
+Published in 1997 by Akamai
+
+: application in load balancing web traffic
+
+Can name the buckets after servers
+
+Simple to implement
+
+: I used a librar from Groupcache which was very simple
+
+.link https://github.com/golang/groupcache/blob/master/consistenthash/consistenthash.go Consistent hashing implementation in Go
+
+* Second attempt: Jump hash
+
+Published in 2004 by Lamping and Veach from Google
+
+Buckets are referenced by number not name
+
+Better suited for storage than load balancers
+
+Minimal memory use
+
+: Karger algorithm uses memory proportional to number of buckets
+
+Very fast
+
+: faster than Karger
+
+Better distribution across buckets
+
+: load more evently balanced between servers
+
+* Jump hash reference implementation
+
+: few lines of code
+: uses a magic constant to generate pseudo-random numbers
+: AKA 64-bit Linear Congruential Generator
+: not to hard to understand if you put aside the performance optimisations
+
+  int32_t JumpConsistentHash(uint64_t key, int32_t num_buckets) {
+    int64_t b = ­1, j = 0;
+    while (j < num_buckets) {
+      b = j;
+      key = key * 2862933555777941757ULL + 1;
+      j = (b + 1) * (double(1LL << 31) / double((key >> 33) + 1));
+    }
+    return b;
+  }
+
+* Partition key
+
+#- choice of partition key
+
+The hash function needs some input
+
+: here we call the input the partition key
+
+The partition key influences which bucket data is placed in
+
+.link https://github.com/mattbostock/timbala/issues/12 Decision record for partition key
+
+* First attempt: timestamp only
+
+    <bucket_end_time_as_YYYYMMDD>
+
+All metrics generated on the same day would be stored together
+
+Simple but naïve
+
+: easy to reason about
+
+Only a small subset of servers would be writing data on any given day
+
+All queries are time-bound; helps limit query
+
+: we always know the time range for the query
+
+* Second attempt
+
+    <bucket_end_time_as_YYYYMMDD>:<metric_name>:[<label_name>,<label_name>...]
+
+Includes label names
+
+Writes distributed across all nodes
+
+Means all nodes need to be queried since we don't know all the label names up front
+
+: sometimes we don't even know the metric name
+
+* Partition keys: to be continued
+
+Still a work in progress
+
+Maybe try nesting jump hashes?
+
+Bloom filters or probablistic data structures to reduce query load?
+
+
+* Replicas
+
+3 replicas (copies) of each shard
+
+Achieved by prepending the replica number to the parition key
+
+* On-disk storage format
+
+: looked at
+
+Log-structured merge
+LevelDB
+RocksDB
+LMDB
+B-trees and b-tries (bitwise trie structure) for indexes
+Locality-preserving hashes
+
+: useful for multi-dimensional data?
+
+: storage is hard
+: around the same time, the one of the Prometheus developers started work on a new storage engine
+
+* Use an existing library
+
+.link https://github.com/prometheus/tsdb Prometheus TSDB library
+
+Cleaner interface than previous Prometheus storage engine
+
+Intended to be used as a library
+
+: easier to integrate
+
+: see Fabian's talk
+: conclusion: good programmers are lazy programmers
+
+#* Failure modes
+
+* Architecture
+
+# what coordination is required?
+No centralised index (only shared state is node metadata)
+
+Each node has the same role
+
+Any node can receive a query
+
+Any node can receive new data
+
+: New data will be routed to the appropriate nodes
+: Ingestion and querying should be load-balanced between nodes
+
+No centralised index, data placement is determined by consistent hash
+
+* Testing
+
+- Unit tests
+- Acceptance tests
+- Integration tests
+- Benchmarking
+
+: aiming to get a high degree of value from the tests at this stage in development
+: majority of tests, including the integration tests, have the Go race detector enabled
+
+* Unit tests
+
+* Data distribution tests
+
+How even is the distribution of samples across nodes in the cluster?
+
+: want to avoid a single node from storing more than others
+
+Are replicas of the same data stored on separate nodes?
+
+: I ensured this by shifting a replica to the next unused node if a replica
+: already exists on that node
+
+* 
+ 
+
+  === RUN TestHashringDistribution/3_replicas_across_5_nodes
+  Distribution of samples when replication factor is 3 across a cluster of 5 nodes:
+  Node 0 : #########                                          19.96%; 59891 samples
+  Node 1 : #########                                          19.99%; 59967 samples
+  Node 2 : ##########                                         20.19%; 60558 samples
+  Node 3 : #########                                          19.74%; 59212 samples
+  Node 4 : ##########                                         20.12%; 60372 samples
+  Summary:
+  Min: 59212
+  Max: 60558
+  Mean: 60000.00
+  Median: 59967
+  Standard deviation: 465.55
+  Total samples: 300000
+
+  Distribution of 3 replicas across 5 nodes:
+  0 nodes:                                                    0.00%; 0 samples
+  1 nodes:                                                    0.00%; 0 samples
+  2 nodes:                                                    0.00%; 0 samples
+  3 nodes: ################################################## 100.00%; 100000 samples
+
+  Replication summary:
+  Min nodes samples are spread over: 3
+  Max nodes samples are spread over: 3
+  Mode nodes samples are spread over: [3]
+  Mean nodes samples are spread over: 3.00
+
+* Data displacement tests
+
+If I change the cluster size, how much data needs to move servers?
+
+: test the hashring with unit tests, add a bunch of samples, change the cluster size
+: count how many samples were hashed to a different server
+
+  === RUN   TestHashringDisplacement
+  293976 unique samples
+  At most 19598 samples should change node
+  15477 samples changed node
+
+  293976 unique samples
+  At most 21776 samples should change node
+  16199 samples changed node
+  --- PASS: TestHashringDisplacement (4.33s)
+
+* Data displacement failure
+
+: this test identified an bug
+
+Too much data was being moved because I was sorting the list of nodes alphabetically
+
+: aiming for deterministic behaviour
+: but worked against the Jumphash consistent hashing algorithm
+
+* Jump hash gotcha 
+
+: this sentence in the paper caught me out
+
+"Its main limitation is that the buckets must be numbered sequentially, which makes it
+more suitable for data storage applications than for distributed web caching."
+
+: Numbered sequentially is important
+
+Jump hash works on buckets, not server names
+
+Conclusion: Each node needs to remember the order in which it joined the cluster
+
+* Acceptance tests
+
+Verify core functionality from a user perspective
+
+: simple arithmetic in promql queries sent to HTTP query API
+: sending samples to remote write api
+: writing data then querying it back, comparing the results
+: checking for presence of debug endpoints and metrics (important for operations)
+: run the application binary, allows for testing command-line flags
+
+
+* Integration tests
+
+Most effective, least brittle tests at this stage in the project
+
+: not affected as much by code refactoring
+
+Some cross-over with acceptance tests
+
+: acceptance tests focused on a single node (run quickly, verify APIs)
+: integration tests focused on interoperability with third-party components such as Prometheus server and client libraries
+: integration tests also test the clustering functionality
+
+Docker compose for portability, easy to define
+
+: found race conditions
+: tested Prometheus as a client sending data to the remote write API
+: tested Prometheus official client library worked with Timbala API (should be compatible)
+: tested interoperability with nginx though later removed (one issue found)
+
+* 
+
+Integration tests run in Travis CI on every PR
+
+.image travis_integration_tests.png _ 1200
+
+: three-node cluster running in Docker Compose on Travis CI
+
+* Benchmarking
+
+Benchmarking harness using Docker Compose
+
+Allowed for debugging the running processes under load
+
+: pprof profiling
+: no-ops to benchmark parts of the system; pprof
+
+Randomly generated metrics, using a seed so tests can be repeated deterministically
+
+: multiple workers sending generated metrics
+
+Microbenchmarks
+
+: using Go testing library
+
+* Failure injection
+
+Stop nodes
+
+: Give additional privileges to a control container that can tell Docker to stop/start nodes in the cluster
+
+Packet loss, re-ordering, latency using tc (Traffic Control)
+
+: add NET_ADMIN capability to control container to manipulate Docker network
+
+* More information
+
+: primary learning from the project that the greatest challenge when implementing
+: a distributed system is not so much the implementation (known knowns or known unknowns)
+: but rather the more insidious difficulty of reasoning about its failure modes and the potential
+: combination of factors that could lead to data loss.
+
+.link https://github.com/mattbostock/timbala/blob/master/docs/architecture.md Timbala architecture documentation
+.link https://dataintensive.net/ Designing Data-Intensive Systems
+
+: great introduction
+
+.link https://peter.bourgon.org/ok-log/ OK Log blog post
+
+: drew lots of inspiration, particularly on rationalising coordination between nodes in the cluster
+
+.link https://www.somethingsimilar.com/2013/01/14/notes-on-distributed-systems-for-young-bloods/ Notes on Distributed Systems for Young Bloods
+.link https://www.youtube.com/watch?v=1-3Ahy7Fxsc Achieving Rapid Response Times in Large Online Services
+.link https://jepsen.io/talks Jepsen distributed systems safety research
+.link https://fabxc.org/tsdb/ Writing a Time Series Database from Scratch
+.link http://www.vldb.org/pvldb/vol8/p1816-teller.pdf Gorilla: A Fast, Scalable, In-Memory Time Series Database
+.link https://www.qualimente.com/2016/04/26/introduction-to-failure-testing-with-docker/ Failure testing with Docker
+.link https://www.cs.cornell.edu/~asdas/research/dsn02-swim.pdf SWIM gossip protocol paper
+.link https://arxiv.org/abs/1406.2294 Jump hash paper
